@@ -1,12 +1,22 @@
-#include<iostream>
-#include<ostream>
-#include<string>
+#include <iostream>
+#include <ostream>
+#include <string>
 #include <fstream>
+#include <chrono>
 using namespace std;
+
 const int SIZE = 15;
 const char PLAYER1_SYMBOL = 'X';
 const char PLAYER2_SYMBOL = 'O';
-void saveResult(char board[SIZE][SIZE], const string& result){
+const double TIME_LIMIT = 30.0; // 2 minutes in seconds
+
+struct PlayerTime {
+    double timeLeft1 = TIME_LIMIT;
+    double timeLeft2 = TIME_LIMIT;
+    chrono::steady_clock::time_point startTime;
+};
+
+void saveResult(char board[SIZE][SIZE], const string& result) {
     ofstream fout("result.txt");
     if (!fout.is_open()) {
         cout << "Error: Could not open result.txt for writing.\n";
@@ -20,15 +30,17 @@ void saveResult(char board[SIZE][SIZE], const string& result){
     fout << result << endl;
     fout.close();
 }
+
 bool isFull(char board[SIZE][SIZE]) {
     for (int i = 0; i < SIZE; ++i)
-    for (int j = 0; j < SIZE; ++j)
-        if (board[i][j] == ' ') return false;
-      
+        for (int j = 0; j < SIZE; ++j)
+            if (board[i][j] == ' ') return false;
     return true;
 }
+
 bool checkWin(char board[SIZE][SIZE], int x, int y, char player) {
     int count = 1;
+    // Check horizontal
     for (int i = 1; i <= 4 && y - i >= 0; ++i)
         if (board[x][y - i] == player) count++; else break;
     for (int i = 1; i <= 4 && y + i < SIZE; ++i)
@@ -61,67 +73,65 @@ bool checkWin(char board[SIZE][SIZE], int x, int y, char player) {
 
     return false;
 }
+
 bool isValidInput(string input, int& x, int& y, char board[SIZE][SIZE]) {
     size_t comma = input.find(',');
-    if (comma == string::npos){
-        cout <<"Input is invalid" << endl;
-        cout << "Please re-input your coordinate: "; 
+    if (comma == string::npos) {
+        cout << "Input is invalid. Input must be in the format x,y (e.g., 1,2)\n";
+        cout << "Please re-input your coordinate: ";
         return false;
-    } 
+    }
 
     try {
         x = stoi(input.substr(0, comma));
         y = stoi(input.substr(comma + 1));
     } catch (...) {
+        cout << "Input is invalid. Coordinates must be numbers.\n";
+        cout << "Please re-input your coordinate: ";
         return false;
     }
 
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) {
-        cout <<"Input is invalid. Input must be in the format x,y (e.g., 1,2)" << endl;
-        cout << "Please re-input your coordinate: "; 
+        cout << "Input is invalid. Coordinates must be between 0 and " << SIZE - 1 << ".\n";
+        cout << "Please re-input your coordinate: ";
         return false;
     }
     if (board[x][y] != ' ') {
-        cout << "Cell already taken. \n";
+        cout << "Cell already taken.\n";
         cout << "Please re-input your coordinate: ";
         return false;
-    }    
+    }
     return true;
 }
+
 void printBoard(char board[SIZE][SIZE], int x, int y) {
-    // In chỉ số cột
     cout << "  ";
     for (int col = 0; col < SIZE; col++) {
-        if(col == 0) cout << "    " << col;
-        else if (0 < col && col <= 10) cout << "     " << col ;
-        else  cout << "    " <<col;
-      
+        if (col == 0) cout << "    " << col;
+        else if (0 < col && col <= 10) cout << "     " << col;
+        else cout << "    " << col;
     }
     cout << endl;
 
-    // In dòng trên cùng
     cout << "   +";
     for (int i = 0; i < SIZE - 1; i++) {
         cout << "-----+";
     }
     cout << "-----+" << endl;
 
-    // In thân bàn cờ
     for (int row = 0; row < SIZE; row++) {
-        // In chỉ số hàng
         if (row < 10) cout << " " << row << " ";
         else cout << row << " ";
 
-        // In nội dung hàng
         for (int col = 0; col < SIZE; col++) {
-            if(row == x && col == y){
-                cout << "| [" << board[row][col] <<"] ";
-            } else cout << "|  " << board[row][col] << "  ";
-            
+            if (row == x && col == y) {
+                cout << "| [" << board[row][col] << "] ";
+            } else {
+                cout << "|  " << board[row][col] << "  ";
+            }
         }
         cout << "|" << endl;
 
-        // In dòng phân cách
         cout << "   +";
         for (int i = 0; i < SIZE - 1; i++) {
             cout << "-----+";
@@ -129,91 +139,139 @@ void printBoard(char board[SIZE][SIZE], int x, int y) {
         cout << "-----+" << endl;
     }
 }
-void Gomoku(int currentPlayer, char board[SIZE][SIZE], bool finished){
-    if(finished) return;
-    cout << "Player " << currentPlayer << ", please input your coordinates: " ;
-    string input; 
-    getline(cin >> ws, input);
-    int x, y;
-    while(!isValidInput(input, x, y, board)){
-        getline(cin >> ws, input);
-    }
 
-    board[x][y] = currentPlayer == 1 ? PLAYER1_SYMBOL : PLAYER2_SYMBOL;    
-    if (checkWin(board, x, y, board[x][y])) {
-        printBoard(board, x, y);
-        string result = "Player " + to_string(currentPlayer) + " wins";
-        cout << result << "!\n";
-        saveResult(board, result);
-        finished  = true;
-    }else if (isFull(board)) {
-        printBoard(board,x ,y);
-        string result = "Tie";
-        cout << result << "!\n";
-        saveResult(board, result);
-        finished  = true;
-    }
-    currentPlayer = 3 - currentPlayer;
-    Gomoku(currentPlayer, board, finished);
-}
-bool playAgain( char board[SIZE][SIZE]){
+bool playAgain(char board[SIZE][SIZE], PlayerTime& timers) {
     cout << "Do you want to play again? (y/n): ";
-        char playAgain;
-        cin >> playAgain;
-        if (playAgain != 'y' && playAgain != 'Y') return true;
-        // Reset board and game state
-        else{
-        for (int i = 0; i < SIZE; i++)
-            for (int j = 0; j < SIZE; j++)
-                board[i][j] = ' ';
-         }
-         return false;
-}
-int main() {
-    cout << "Convention:" <<endl;
-    cout << "  - Use X for black stones " <<endl;
-    cout << "  - Use O for white stones " << endl;
-    cout << "The Player 1 with X" << endl;
-    cout << "The Player 2 with O" << endl;
-    char board[SIZE][SIZE];
-    // Khởi tạo tất cả các ô là dấu cách (chưa có quân)
+    char playAgain;
+    cin >> playAgain;
+    if (playAgain != 'y' && playAgain != 'Y') return true;
+
+    // Reset board
     for (int i = 0; i < SIZE; i++)
         for (int j = 0; j < SIZE; j++)
             board[i][j] = ' ';
-     cout << "Plese choose the Player first: " ;
-     int currentPlayer ;
-     cin >> currentPlayer ;
+
+    // Reset timers
+    timers.timeLeft1 = TIME_LIMIT;
+    timers.timeLeft2 = TIME_LIMIT;
+
+    return false;
+}
+
+void updateTimer(PlayerTime& timers, int currentPlayer) {
+    auto endTime = chrono::steady_clock::now();
+    double elapsed = chrono::duration<double>(endTime - timers.startTime).count();
+    if (currentPlayer == 1) {
+        timers.timeLeft1 -= elapsed;
+    } else {
+        timers.timeLeft2 -= elapsed;
+    }
+}
+
+bool checkTimeOut(PlayerTime& timers, int currentPlayer, char board[SIZE][SIZE]) {
+    if (currentPlayer == 1 && timers.timeLeft1 <= 0 && timers.timeLeft2 > 0) {
+        printBoard(board, -1, -1);
+        string result = "Player 2 wins due to Player 1 timeout";
+        cout << result << "!\n";
+        saveResult(board, result);
+        return true;
+    } else if (currentPlayer == 2 && timers.timeLeft2 <= 0 && timers.timeLeft1 > 0) {
+        printBoard(board, -1, -1);
+        string result = "Player 1 wins due to Player 2 timeout";
+        cout << result << "!\n";
+        saveResult(board, result);
+        return true;
+    }
+    return false;
+}
+
+int main() {
+    cout << "Convention:" << endl;
+    cout << "  - Use X for black stones" << endl;
+    cout << "  - Use O for white stones" << endl;
+    cout << "  - Each player has " << TIME_LIMIT << " seconds total time" << endl;
+    cout << "  - Player who runs out of time first loses" << endl;
+    cout << "The Player 1 with X" << endl;
+    cout << "The Player 2 with O" << endl;
+
+    char board[SIZE][SIZE];
+    PlayerTime timers;
+
+    // Initialize board
+    for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+            board[i][j] = ' ';
+
+    cout << "Please choose the first Player (1 or 2): ";
+    int currentPlayer;
+    cin >> currentPlayer;
+    if (currentPlayer != 1 && currentPlayer != 2) {
+        cout << "Invalid player. Defaulting to Player 1.\n";
+        currentPlayer = 1;
+    }
+
     bool finished = false;
     printBoard(board, -1, -1);
-    //start
-    while(!finished){
+
+    while (!finished) {
+        // Display remaining time
+        cout << "Player 1 time left: " << fixed << timers.timeLeft1 << " seconds\n";
+        cout << "Player 2 time left: " << timers.timeLeft2 << " seconds\n";
+       
+        // Check for timeout before move
+       
         cout << "Player " << currentPlayer << ", please input coordinates (x,y): ";
-     string input; 
-    getline(cin >> ws, input);
-    int x, y;
-    while(!isValidInput(input, x, y, board)){
+        timers.startTime = chrono::steady_clock::now();
+        string input;
         getline(cin >> ws, input);
-    }
+        int x, y;
+        while (!isValidInput(input, x, y, board)) {
+            getline(cin >> ws, input);
+        }
+        
+        // Update time after move
+        updateTimer(timers, currentPlayer);
+        if (checkTimeOut(timers, currentPlayer, board)) {
+            finished = playAgain(board, timers);
+            if (!finished) {
+                cout << "Please choose the first Player (1 or 2): ";
+                cin >> currentPlayer;
+                if (currentPlayer != 1 && currentPlayer != 2) currentPlayer = 1;
+                printBoard(board, -1, -1);
+            }
+            continue;
+        }
 
-    board[x][y] = currentPlayer == 1 ? 'X' : 'O';
-    printBoard(board, x, y);
-    if (checkWin(board, x, y, board[x][y])) {
+        board[x][y] = currentPlayer == 1 ? PLAYER1_SYMBOL : PLAYER2_SYMBOL;
         printBoard(board, x, y);
-        string result = "Player " + to_string(currentPlayer) + " wins";
-        cout << result << "!\n";
-        saveResult(board, result);
-        finished = playAgain(board);
-    }
-    if (isFull(board)) {
-        printBoard(board,x ,y);
-        string result = "Tie";
-        cout << result << "!\n";
-        saveResult(board, result);
-        finished = playAgain(board);
-    }
-    currentPlayer = 3 - currentPlayer;
+
+        if (checkWin(board, x, y, board[x][y])) {
+            string result = "Player " + to_string(currentPlayer) + " wins";
+            cout << result << "!\n";
+            saveResult(board, result);
+            finished = playAgain(board, timers);
+            if (!finished) {
+                cout << "Please choose the first Player (1 or 2): ";
+                cin >> currentPlayer;
+                if (currentPlayer != 1 && currentPlayer != 2) currentPlayer = 1;
+                printBoard(board, -1, -1);
+            }
+        } else if (isFull(board)) {
+            string result = "Tie";
+            cout << result << "!\n";
+            saveResult(board, result);
+            finished = playAgain(board, timers);
+            if (!finished) {
+                cout << "Please choose the first Player (1 or 2): ";
+                cin >> currentPlayer;
+                if (currentPlayer != 1 && currentPlayer != 2) currentPlayer = 1;
+                printBoard(board, -1, -1);
+            }
+        } else {
+            currentPlayer = 3 - currentPlayer;
+        }
     }
 
-    
     return 0;
 }
+
