@@ -1,16 +1,16 @@
                               
                               
-      X O                     
-          O                   
-                              
-            X                 
-                              
-                O             
-                              
-                              
-                    X         
                               
                               
                               
                               
-Player 2 wins due to Player 1 timeout
+                              
+            X   O             
+              O   X           
+                              
+                              
+                              
+                              
+                              
+                              
+Player 1 wins due to Player 2 timeout
