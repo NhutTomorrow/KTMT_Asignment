@@ -22,10 +22,34 @@ void saveResult(char board[SIZE][SIZE], const string& result) {
         cout << "Error: Could not open result.txt for writing.\n";
         return;
     }
-    for (int row = 0; row < SIZE; ++row) {
-        for (int col = 0; col < SIZE; ++col)
-            fout << board[row][col] << ' ';
-        fout << '\n';
+    fout << "  ";
+    for (int col = 0; col < SIZE; col++) {
+        if (col == 0) fout << "    " << col;
+        else if (0 < col && col <= 10) fout << "     " << col;
+        else fout << "    " << col;
+    }
+    fout << endl;
+
+    fout << "   +";
+    for (int i = 0; i < SIZE - 1; i++) {
+        fout << "-----+";
+    }
+    fout << "-----+" << endl;
+
+    for (int row = 0; row < SIZE; row++) {
+        if (row < 10) fout << " " << row << " ";
+        else fout << row << " ";
+
+        for (int col = 0; col < SIZE; col++) {
+               fout << "|  " << board[row][col] << "  ";
+        }
+        fout << "|" << endl;
+
+        fout << "   +";
+        for (int i = 0; i < SIZE - 1; i++) {
+            fout << "-----+";
+        }
+        fout << "-----+" << endl;
     }
     fout << result << endl;
     fout.close();
@@ -51,8 +75,8 @@ bool checkWin(char board[SIZE][SIZE], int x, int y, char player) {
     count = 1;
     for (int i = 1; i <= 4 && x - i >= 0; ++i)
         if (board[x - i][y] == player) count++; else break;
-    for (int i = 1; i <= 4 && x + i < SIZE; ++i)
-        if (board[x + i][y] == player) count++; else break;
+        for (int i = 1; i <= 4 && x + i < SIZE; ++i)
+            if (board[x + i][y] == player) count++; else break;
     if (count >= 5) return true;
 
     // Check main diagonal (\)
@@ -70,6 +94,7 @@ bool checkWin(char board[SIZE][SIZE], int x, int y, char player) {
     for (int i = 1; i <= 4 && x + i < SIZE && y - i >= 0; ++i)
         if (board[x + i][y - i] == player) count++; else break;
     if (count >= 5) return true;
+
 
     return false;
 }
